@@ -34,23 +34,10 @@ function App() {
   const [currentUser, setCurrentUser] = useState({});
   const [cards, setCards] = useState([]);
   const [email, setEmail] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(
-    localStorage.getItem("token") ? true : false
-  );
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
 
   const navigate = useNavigate();
-
-  useEffect(() => {
-    Promise.all([api.getUser(), api.getInitialCards()])
-      .then(([user, cards]) => {
-        setCurrentUser(user);
-        setCards(cards);
-      })
-      .catch((err) => {
-        console.log(`Ошибка: ${err}`);
-      });
-  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -59,6 +46,7 @@ function App() {
         .checkToken(token)
         .then((data) => {
           setEmail(data.data.email);
+          setIsLoggedIn(true);
         })
         .catch((err) => {
           console.log(err);
@@ -66,18 +54,43 @@ function App() {
     }
   }, [navigate]);
 
+  useEffect(() => {
+    isLoggedIn &&
+      Promise.all([api.getUser(), api.getInitialCards()])
+        .then(([user, cards]) => {
+          setCurrentUser(user);
+          setCards(cards);
+        })
+        .catch((err) => {
+          console.log(`Ошибка: ${err}`);
+        });
+  }, [isLoggedIn]);
+
   function handleCardLike(card) {
     const isLiked = card.likes.some((like) => like._id === currentUser._id);
-    api
-      .likeCard(card._id, !isLiked)
-      .then((newCard) => {
-        setCards((state) =>
-          state.map((c) => (c._id === card._id ? newCard : c))
-        );
-      })
-      .catch((err) => {
-        console.log(err);
-      });
+    if (!isLiked) {
+      api
+        .likeCard(card._id)
+        .then((newCard) => {
+          setCards((state) =>
+            state.map((c) => (c._id === card._id ? newCard : c))
+          );
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    } else {
+      api
+        .dislikeCard(card._id)
+        .then((newCard) => {
+          setCards((state) =>
+            state.map((c) => (c._id === card._id ? newCard : c))
+          );
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    }
   }
 
   function handleCardDelete(card) {
